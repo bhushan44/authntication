@@ -5,11 +5,24 @@ const user = require("../models/usermodel");
 const jswebtoken = require("jsonwebtoken");
 dotenv.config({ path: "../config.env" });
 function tokencreation(id) {
-  const token = jswebtoken.sign({ id: id }, process.env.SECRET);
+  const token = jswebtoken.sign({ id: id }, process.env.SECRET, {
+    expiresIn: "90d",
+  });
   return token;
 }
 function createuser(req, res) {
-  const newuser = new user(req.body);
+  const { name, email, password, conformPassword, changepasswordat, role } =
+    req.body;
+  const date = new Date(changepasswordat);
+  console.log(date);
+  const newuser = new user({
+    name,
+    role,
+    email,
+    password,
+    conformPassword,
+    changepasswordat,
+  });
   newuser
     .save()
     .then((doc) => {
@@ -21,6 +34,7 @@ function createuser(req, res) {
         data: doc,
       });
     })
+
     .catch((e) => {
       res.send(e);
     });
@@ -30,7 +44,7 @@ async function getusers(req, res) {
     // const user1 = new user();
     const docs = await user.find();
 
-    console.log(docs);
+    // console.log(docs);
     res.json({
       status: "success",
       // token,
@@ -48,7 +62,19 @@ async function getusers(req, res) {
 
 function getuser() {}
 function updateuser() {}
-function deleteuser() {}
+async function deleteuser(req, res) {
+  console.log(req.params);
+  try {
+    let deluser = await user.deleteOne({ _id: req.params.id });
+    res.json({
+      deluser,
+    });
+  } catch (e) {
+    res.json({
+      error: e,
+    });
+  }
+}
 async function signin(req, res) {
   const { email, password } = req.body;
   try {
@@ -80,6 +106,7 @@ async function signin(req, res) {
     });
   }
 }
+
 module.exports = {
   createuser,
   getusers,
