@@ -1,6 +1,6 @@
 // const { default: isEmail } = require("validator/lib/isEmail");
 const dotenv = require("dotenv");
-
+const { sendemail } = require("../utils/email");
 const user = require("../models/usermodel");
 const jswebtoken = require("jsonwebtoken");
 dotenv.config({ path: "../config.env" });
@@ -10,11 +10,20 @@ function tokencreation(id) {
   });
   return token;
 }
+function filterObj(obj, ...roles) {
+  const newobj = {};
+  Object.keys(obj).forEach((el) => {
+    if (roles.includes(el)) {
+      newobj[el] = obj[el];
+    }
+  });
+  return newobj;
+}
 function createuser(req, res) {
   const { name, email, password, conformPassword, changepasswordat, role } =
     req.body;
-  const date = new Date(changepasswordat);
-  console.log(date);
+  // const date = new Date(changepasswordat);
+  // console.log(date);
   const newuser = new user({
     name,
     role,
@@ -61,20 +70,41 @@ async function getusers(req, res) {
 }
 
 function getuser() {}
-function updateuser() {}
-async function deleteuser(req, res) {
-  console.log(req.params);
-  try {
-    let deluser = await user.deleteOne({ _id: req.params.id });
-    res.json({
-      deluser,
-    });
-  } catch (e) {
-    res.json({
-      error: e,
+async function updateme(req, res) {
+  if (req.body.password || req.body.conformPassword) {
+    return res.json({
+      message: "this route is not for updatepassword please use suitable route",
     });
   }
+  const filterBody = filterObj(req.body, "name", "email");
+  const data = await user.findByIdAndUpdate(req.user.id, filterBody, {
+    new: true,
+    runValidators: true,
+  });
+  res.json({
+    status: "success",
+    data,
+  });
 }
+async function deleteme(req, res) {
+  await user.findByIdAndUpdate(req.user.id, { active: false });
+  res.json({
+    message: "successfully deleted user",
+  });
+}
+// async function deletme(req, res) {
+//   console.log(req.params);
+//   try {
+//     let deluser = await user.deleteOne({ _id: req.params.id });
+//     res.json({
+//       deluser,
+//     });
+//   } catch (e) {
+//     res.json({
+//       error: e,
+//     });
+//   }
+// }
 async function signin(req, res) {
   const { email, password } = req.body;
   try {
@@ -88,8 +118,8 @@ async function signin(req, res) {
     const result = await user.findOne({ email });
     console.log(result.password);
 
-    if (!res || !(await result.correctpassword(password, result.password))) {
-      res.json({
+    if (!result || !(await result.correctpassword(password, result.password))) {
+      return res.json({
         status: "failure",
         message: "invalid user or password",
       });
@@ -99,6 +129,8 @@ async function signin(req, res) {
       status: "s",
       token,
     });
+    // req.user = result;
+    // console.log(req.user);
   } catch (e) {
     res.json({
       status: "error",
@@ -111,7 +143,10 @@ module.exports = {
   createuser,
   getusers,
   getuser,
-  updateuser,
-  deleteuser,
+  // updateuser,
+  // deleteuser,
   signin,
+  tokencreation,
+  updateme,
+  deleteme,
 };

@@ -1,5 +1,9 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const user = require("../models/usermodel");
+const { tokencreation } = require("./usercontroller");
+const { sendemail } = require("../utils/email");
+const { query } = require("express");
 async function protect(req, res, next) {
   let token;
   if (req.headers.authorization) {
@@ -57,5 +61,125 @@ async function forgetpasswordresettoken(req, res) {
   }
   const resettoken = user1.createpasswordresettoken();
   user1.save({ validateBeforeSave: false });
+  const reseturl = `${req.protocol}://${req.get(
+    "host"
+  )}/api/v1/users/resetpassword/${resettoken}`;
+  const message = `forgot your password? submit a patch request with your password and passwordconform to
+  :${reseturl}.\n if you dont froget please ignore`;
+  try {
+    await sendemail({
+      email: user1.email,
+      subject: "password reset token valid for ten min",
+      message,
+    });
+    res.json({
+      message: "reset token successfully sent",
+    });
+  } catch (err) {
+    (user1.passwordresettoken = undefined),
+      (user1.passwordresetexpiresin = undefined);
+    await user1.save({ validateBeforeSave: false });
+    res.json({
+      message: "there was an error sending mail please try agin later",
+    });
+  }
 }
-module.exports = { protect, restrictTo, forgetpasswordresettoken };
+async function resetpassword(req, res) {
+  const hashed = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
+  console.log(hashed);
+
+  const user1 = await user.findOne({
+    passwordresettoken: hashed,
+    passwordresetexpiresin: { $gt: Date.now() },
+  });
+  console.log(user1);
+  if (!user1) {
+    return res.json({
+      message: "invalid token or expired",
+    });
+  }
+  try {
+    console.log(req.body);
+    user1.password = req.body.password;
+    user1.conformPassword = req.body.conformPassword;
+
+    user1.passwordresettoken = undefined;
+    user1.passwordresetexpiresin = undefined;
+    await user1.save();
+    // const updatedUser = await user.updateOne(
+    //   { _id: user1._id },
+    //   {
+    //     $set: {
+    //       // password: req.body.password,
+    //       // passwordresettoken: undefined,
+    //       // passwordresetexpiresin: undefined,
+    //       name: "bhu",
+    //     },
+    //   }
+    // );
+    // const u1 = await user.findByIdAndUpdate(
+    //   user1._id,
+    //   {
+    //     name: "raa",
+    //     password: req.body.password,
+    //     $unset: {
+    //       passwordresettoken: "",
+    //       passwordresetexpiresin: "",
+    //     },
+    //   },
+    //   {
+    //     new: true,
+    //     runValidators: true,
+    //     context: "query",
+    //   }
+    // );
+    // console.log("u1", u1);
+    // const u = await user.findOne({ _id: user1._id });
+    // console.log("u", u);
+    // await user1.save();
+    // console.log("hh");
+    const token = tokencreation(user1._id);
+    res.json({
+      status: "success",
+      token,
+    });
+  } catch (e) {
+    res.json({
+      message: e,
+    });
+  }
+}
+async function updatepassword(req, res) {
+  console.log("bhu", req.user);
+  console.log(req.body);
+  const currentuser = await user.findById(req.user.id);
+  if (
+    !(await currentuser.correctpassword(
+      req.body.conformPassword,
+      currentuser.password
+    ))
+  ) {
+    return res.json({
+      message: "current password is incorrect",
+    });
+  }
+  (currentuser.password = req.body.password),
+    (currentuser.conformPassword = req.body.conformPassword),
+    await currentuser.save();
+  const token = tokencreation(currentuser._id);
+  res.json({
+    status: "success",
+    token,
+  });
+}
+
+module.exports = {
+  protect,
+  restrictTo,
+  forgetpasswordresettoken,
+  resetpassword,
+  updatepassword,
+};
