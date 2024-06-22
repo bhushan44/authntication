@@ -1,5 +1,6 @@
 // const { default: isEmail } = require("validator/lib/isEmail");
 const dotenv = require("dotenv");
+const Otp = require("../models/otpmodel");
 const { sendemail } = require("../utils/email");
 const user = require("../models/usermodel");
 const jswebtoken = require("jsonwebtoken");
@@ -22,6 +23,7 @@ function filterObj(obj, ...roles) {
 function createuser(req, res) {
   const { name, email, password, conformPassword, changepasswordat, role } =
     req.body;
+  console.log(req.body, "body");
   // const date = new Date(changepasswordat);
   // console.log(date);
   const newuser = new user({
@@ -138,6 +140,25 @@ async function signin(req, res) {
     });
   }
 }
+async function login(req, res) {
+  try {
+    const result = await Otp.findOne({ otp: req.body.otp });
+    console.log(result);
+    if (result) {
+      return res.json({
+        message: "otp verifird success",
+      });
+    } else {
+      return res.json({
+        message: "invalid otp",
+      });
+    }
+  } catch (e) {
+    return res.json({
+      message: e.message,
+    });
+  }
+}
 
 module.exports = {
   createuser,
@@ -146,6 +167,7 @@ module.exports = {
   // updateuser,
   // deleteuser,
   signin,
+  login,
   tokencreation,
   updateme,
   deleteme,

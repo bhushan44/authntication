@@ -3,7 +3,7 @@ const User = require("../models/usermodel");
 const { sendemail } = require("../utils/email");
 async function sendotp(req, res, next) {
   let num = "0123456789";
-  let otp = " ";
+  let otp = "";
   for (let i = 0; i < 4; i++) {
     otp = otp + num[Math.floor(Math.random() * 10)];
   }
@@ -11,6 +11,7 @@ async function sendotp(req, res, next) {
   console.log("otp", otp);
   try {
     let user = await User.find({ email: req.body.email });
+    console.log(req.body.email);
     if (!user) {
       return res.send({
         message: "no user with given mail",
@@ -18,7 +19,7 @@ async function sendotp(req, res, next) {
     }
     const otpdoc = await Otp.findOneAndUpdate(
       //   id: user.id,
-      { email: user.email },
+      { email: req.body.email },
       {
         otp,
         createdat: Date.now(),

@@ -11,8 +11,8 @@ const sendemail = (options) => {
     },
   });
   const emailoptions = {
-    from: "bhushan <bhushan@456>",
-    to: "mandalanaga80@gmail.com",
+    from: "bhushanmandala456@gmail.com",
+    to: options.email,
     subject: options.subject,
     text: options.message,
   };
