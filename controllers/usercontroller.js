@@ -20,12 +20,20 @@ function filterObj(obj, ...roles) {
   });
   return newobj;
 }
-function createuser(req, res) {
+async function createuser(req, res) {
   const { name, email, password, conformPassword, changepasswordat, role } =
     req.body;
   console.log(req.body, "body");
   // const date = new Date(changepasswordat);
   // console.log(date);
+  const result = await user.findOne({ email: req.body.email });
+  if (result) {
+    return res.status(409).json({
+      satus: "fail",
+      message: "user already exists with given gamil",
+    });
+  }
+  console.log(result, "user");
   const newuser = new user({
     name,
     role,
@@ -43,11 +51,15 @@ function createuser(req, res) {
         status: "success",
         token,
         data: doc,
+        statusCode: 200,
       });
     })
 
     .catch((e) => {
-      res.send(e);
+      res.status(400).send({
+        message: e.message,
+        statusCode: 400,
+      });
     });
 }
 async function getusers(req, res) {
@@ -142,15 +154,23 @@ async function signin(req, res) {
 }
 async function login(req, res) {
   try {
+    if (!req.body.otp) {
+      return res.json({
+        status: "fail",
+        message: "please enter otp",
+      });
+    }
     const result = await Otp.findOne({ otp: req.body.otp });
     console.log(result);
-    if (result) {
+    if (!result) {
       return res.json({
-        message: "otp verifird success",
+        status: "fail",
+        message: "invalid otp",
       });
     } else {
       return res.json({
-        message: "invalid otp",
+        status: "success",
+        message: "otp verifid successfully",
       });
     }
   } catch (e) {
